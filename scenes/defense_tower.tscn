@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://csl2pd6en7pcn"]
 
-[ext_resource type="Script" uid="uid://cc8y4wijqe2ya" path="res://scripts/defense_tower.gd" id="1_iaigr"]
+[ext_resource type="Script" uid="uid://rr62ltm5fdpv" path="res://scripts/defense_tower.gd" id="1_iaigr"]
 [ext_resource type="Texture2D" uid="uid://d4kgtm6f8537e" path="res://assets/sltime_tower_blue.png" id="2_iaigr"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5lb5s"]

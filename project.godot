@@ -15,6 +15,12 @@ run/main_scene="uid://chpf3slt0ap0g"
 config/features=PackedStringArray("4.4", "Mobile")
 config/icon="res://icon.svg"
 
+[autoload]
+
+GameStats="*res://scripts/autoload/game_stats.gd"
+TowerManager="*res://scripts/autoload/tower_manager.gd"
+WaveManager="*res://scripts/autoload/wave_manager.gd"
+
 [display]
 
 window/size/window_width_override=1920

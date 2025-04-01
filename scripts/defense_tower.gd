@@ -1,80 +1,89 @@
 extends Node2D
+class_name DefenseTower
 
+# Constants for tower behavior
+const HOVER_SCALE := 1.1
+const NORMAL_SCALE := 1.0
+const DRAG_LIFT_HEIGHT := -5.0
+
+# Constants for bounce animation
+const BOUNCE_HEIGHT := 15.0
+const BOUNCE_DURATION := 0.5
+const DROP_DURATION := 0.2
+const BOUNCE_SECONDARY_SCALE := 0.4
+const BOUNCE_TERTIARY_SCALE := 0.15
+
+# Node references
 @onready var sprite_2d: Sprite2D = $Sprite2D
 @onready var area_2d: Area2D = $Sprite2D/Area2D
 @onready var shoot_timer: Timer = $ShootTimer
 
-var hover_scale: float = 1.1
-var normal_scale: float = 1.0
-var is_mouse_over: bool = false
-var is_dragging: bool = false
+# Tower properties
+@export var projectile_scene: PackedScene
+var stats: TowerStats
+
+# State tracking
+var is_mouse_over := false
+var is_dragging := false
 var drag_offset: Vector2
 var original_position: Vector2
-
-# Shooting parameters
-@export var shoot_cooldown: float = 1.0  # Time between shots
-@export var projectile_scene: PackedScene  # The slime ball scene to shoot
-@export var detection_range: float = 800.0  # Maximum distance to detect enemies
-
-# Bounce parameters
-var bounce_height: float = 15.0
-var bounce_duration: float = 0.5
-var drop_duration: float = 0.2
-var is_bouncing: bool = false
 var bounce_tween: Tween
 
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	# Connect to area entered signal
-	area_2d.area_entered.connect(_on_area_entered)
-	area_2d.area_exited.connect(_on_area_exited)
+signal tower_selected(tower: DefenseTower)
 
-	# Set up shooting timer
-	shoot_timer.wait_time = shoot_cooldown
-	shoot_timer.timeout.connect(_on_shoot_timer_timeout)
-	shoot_timer.start()
+func _ready() -> void:
+	_initialize_tower()
+	_setup_signals()
 
 func _process(_delta: float) -> void:
-	# Get mouse position in local coordinates
+	_handle_mouse_interaction()
+	_handle_dragging()
+
+# Initialization methods
+func _initialize_tower() -> void:
+	stats = BasicTowerType.create_stats()
+	shoot_timer.wait_time = 1.0 / stats.attack_speed
+	shoot_timer.start()
+
+func _setup_signals() -> void:
+	area_2d.area_entered.connect(_on_area_entered)
+	area_2d.area_exited.connect(_on_area_exited)
+	shoot_timer.timeout.connect(_on_shoot_timer_timeout)
+
+# Mouse interaction handling
+func _handle_mouse_interaction() -> void:
 	var mouse_pos = get_local_mouse_position()
+	var is_over_sprite = sprite_2d.get_rect().has_point(mouse_pos)
 
-	# Check if mouse is over the sprite
-	if sprite_2d.get_rect().has_point(mouse_pos):
-		if not is_mouse_over:
-			is_mouse_over = true
-			_on_mouse_enter()
+	if is_over_sprite and not is_mouse_over:
+		is_mouse_over = true
+		_on_mouse_enter()
+	elif not is_over_sprite and is_mouse_over:
+		is_mouse_over = false
+		_on_mouse_exit()
 
-		# Check for clicks while hovering
-		if Input.is_action_just_pressed("click"):
-			_on_click()
-			start_drag()
-	else:
-		if is_mouse_over:
-			is_mouse_over = false
-			_on_mouse_exit()
+	if is_over_sprite and Input.is_action_just_pressed("click"):
+		_on_click()
+		start_drag()
 
-	# Handle dragging
+func _handle_dragging() -> void:
 	if is_dragging:
 		if Input.is_action_pressed("click"):
-			# Move the tower with the mouse
 			global_position = get_global_mouse_position() + drag_offset
 		else:
 			stop_drag()
 
+# Combat methods
 func _on_shoot_timer_timeout() -> void:
-	# Find nearest enemy
 	var nearest_enemy = find_nearest_enemy()
 	if nearest_enemy:
 		shoot_at(nearest_enemy)
 
 func find_nearest_enemy() -> Node2D:
-	var nearest_distance = detection_range
+	var nearest_distance = stats.attack_range
 	var nearest_enemy = null
 
-	# Get all enemies in the scene
-	var enemies = get_tree().get_nodes_in_group("enemies")
-
-	for enemy in enemies:
+	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var distance = global_position.distance_to(enemy.global_position)
 		if distance < nearest_distance:
 			nearest_distance = distance
@@ -89,87 +98,81 @@ func shoot_at(target: Node2D) -> void:
 	var projectile = projectile_scene.instantiate()
 	get_parent().add_child(projectile)
 
-	# Spawn projectile at the top of the tower sprite
+	if projectile.has_method("set_damage"):
+		projectile.set_damage(stats.damage)
+
 	var spawn_offset = Vector2(0, -sprite_2d.texture.get_height() * sprite_2d.scale.y / 2)
 	projectile.global_position = global_position + spawn_offset
+	projectile.rotation = (target.global_position - global_position).normalized().angle()
 
-	# Calculate direction to target
-	var direction = (target.global_position - global_position).normalized()
-	projectile.rotation = direction.angle()
-
+# Drag and drop methods
 func start_drag() -> void:
 	is_dragging = true
 	drag_offset = global_position - get_global_mouse_position()
 	original_position = global_position
 
-	# Stop any ongoing bounce when starting to drag
 	if bounce_tween:
 		bounce_tween.kill()
-	sprite_2d.position.y = 0
-	# Lift the tower slightly when dragging
-	sprite_2d.position.y = -5
+	sprite_2d.position.y = DRAG_LIFT_HEIGHT
 
 func stop_drag() -> void:
 	is_dragging = false
-	# Check if we're overlapping with any other towers
+
 	if has_overlapping_areas():
-		# If overlapping, return to original position with bounce
 		var return_tween = create_tween()
-		return_tween.set_trans(Tween.TRANS_QUINT)
-		return_tween.set_ease(Tween.EASE_OUT)
-		return_tween.tween_property(self, "global_position", original_position, drop_duration)
+		return_tween.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+		return_tween.tween_property(self, "global_position", original_position, DROP_DURATION)
 		return_tween.tween_callback(func(): start_bounce())
 	else:
-		# If valid position, just do a smooth drop and bounce
-		start_bounce(bounce_height * 0.7)
+		start_bounce(BOUNCE_HEIGHT * 0.7)
 
-func start_bounce(height: float = bounce_height) -> void:
-	# Kill any existing bounce tween
+# Visual feedback methods
+func start_bounce(height: float = BOUNCE_HEIGHT) -> void:
 	if bounce_tween:
 		bounce_tween.kill()
 
 	bounce_tween = create_tween()
-	bounce_tween.set_trans(Tween.TRANS_CUBIC)  # Changed to cubic for smoother motion
-	bounce_tween.set_ease(Tween.EASE_OUT)
+	bounce_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
-	# First bounce (highest)
-	bounce_tween.tween_property(sprite_2d, "position:y", -height, bounce_duration * 0.2)
-	bounce_tween.tween_property(sprite_2d, "position:y", 0.0, bounce_duration * 0.3)
+	# Main bounce
+	bounce_tween.tween_property(sprite_2d, "position:y", -height, BOUNCE_DURATION * 0.2)
+	bounce_tween.tween_property(sprite_2d, "position:y", 0.0, BOUNCE_DURATION * 0.3)
 
-	# Second bounce (40% of height)
-	bounce_tween.tween_property(sprite_2d, "position:y", -height * 0.4, bounce_duration * 0.15)
-	bounce_tween.tween_property(sprite_2d, "position:y", 0.0, bounce_duration * 0.2)
+	# Secondary bounce
+	bounce_tween.tween_property(sprite_2d, "position:y", -height * BOUNCE_SECONDARY_SCALE, BOUNCE_DURATION * 0.15)
+	bounce_tween.tween_property(sprite_2d, "position:y", 0.0, BOUNCE_DURATION * 0.2)
 
-	# Third bounce (15% of height)
-	bounce_tween.tween_property(sprite_2d, "position:y", -height * 0.15, bounce_duration * 0.1)
-	bounce_tween.tween_property(sprite_2d, "position:y", 0.0, bounce_duration * 0.15)
+	# Tertiary bounce
+	bounce_tween.tween_property(sprite_2d, "position:y", -height * BOUNCE_TERTIARY_SCALE, BOUNCE_DURATION * 0.1)
+	bounce_tween.tween_property(sprite_2d, "position:y", 0.0, BOUNCE_DURATION * 0.15)
 
 func _on_mouse_enter() -> void:
-	# Make sprite bigger on hover
-	sprite_2d.scale = Vector2(hover_scale, hover_scale)
+	sprite_2d.scale = Vector2(HOVER_SCALE, HOVER_SCALE)
 
 func _on_mouse_exit() -> void:
-	# Return to normal size
-	sprite_2d.scale = Vector2(normal_scale, normal_scale)
+	sprite_2d.scale = Vector2(NORMAL_SCALE, NORMAL_SCALE)
 
 func _on_click() -> void:
-	print("TODO: Tower Stats UI")
+	tower_selected.emit(self)
 
 func _on_area_entered(_area: Area2D) -> void:
-	# If we're dragging and collide with another tower, show visual feedback
 	if is_dragging:
-		sprite_2d.modulate = Color(1, 0.5, 0.5)  # Red tint when overlapping
-		start_bounce(bounce_height * 0.3)  # Small bounce on collision
+		sprite_2d.modulate = Color(1, 0.5, 0.5)
+		start_bounce(BOUNCE_HEIGHT * 0.3)
 
 func _on_area_exited(_area: Area2D) -> void:
-	# Remove visual feedback when no longer overlapping
-	sprite_2d.modulate = Color(1, 1, 1)  # Normal color
+	sprite_2d.modulate = Color.WHITE
 
 func has_overlapping_areas() -> bool:
-	# Get all overlapping areas
-	var overlapping_areas = area_2d.get_overlapping_areas()
-	# Filter out our own area
-	for area in overlapping_areas:
+	for area in area_2d.get_overlapping_areas():
 		if area.get_parent().get_parent() != self:
 			return true
+	return false
+
+# Upgrade handling
+func upgrade_tower() -> bool:
+	if stats.can_upgrade():
+		stats.apply_upgrade()
+		shoot_timer.wait_time = 1.0 / stats.attack_speed
+		return true
 	return false

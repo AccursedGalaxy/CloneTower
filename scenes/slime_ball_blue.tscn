@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://bskf7chn632a8"]
 
 [ext_resource type="Texture2D" uid="uid://8i0xtivyxxrw" path="res://assets/slime_ball_blue.png" id="1_vpr6v"]
-[ext_resource type="Script" uid="uid://bv2fd3qbrgh1f" path="res://scripts/slime_ball_blue.gd" id="2_8k4m2"]
+[ext_resource type="Script" uid="uid://chh62fkits52f" path="res://scripts/slime_ball_blue.gd" id="2_8k4m2"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
 radius = 8.0
