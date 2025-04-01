@@ -139,7 +139,7 @@ func shoot_at(target: Node2D) -> void:
 	last_target_time = current_time
 
 	# Calculate intercept point
-	var direction_to_target = (target.global_position - projectile.global_position).normalized()
+	var _direction_to_target = (target.global_position - projectile.global_position).normalized()
 	var distance_to_target = projectile.global_position.distance_to(target.global_position)
 	var projectile_speed = projectile.speed
 	var time_to_target = distance_to_target / projectile_speed
