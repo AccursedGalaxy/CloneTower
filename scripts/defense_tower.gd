@@ -14,7 +14,7 @@ var original_position: Vector2
 # Shooting parameters
 @export var shoot_cooldown: float = 1.0  # Time between shots
 @export var projectile_scene: PackedScene  # The slime ball scene to shoot
-@export var detection_range: float = 500.0  # Maximum distance to detect enemies
+@export var detection_range: float = 800.0  # Maximum distance to detect enemies
 
 # Bounce parameters
 var bounce_height: float = 15.0
@@ -88,7 +88,10 @@ func shoot_at(target: Node2D) -> void:
 
 	var projectile = projectile_scene.instantiate()
 	get_parent().add_child(projectile)
-	projectile.global_position = global_position
+
+	# Spawn projectile at the top of the tower sprite
+	var spawn_offset = Vector2(0, -sprite_2d.texture.get_height() * sprite_2d.scale.y / 2)
+	projectile.global_position = global_position + spawn_offset
 
 	# Calculate direction to target
 	var direction = (target.global_position - global_position).normalized()

@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="letsdothis"
-run/main_scene="uid://bntttjgnim263"
+run/main_scene="uid://chpf3slt0ap0g"
 config/features=PackedStringArray("4.4", "Mobile")
 config/icon="res://icon.svg"
 
