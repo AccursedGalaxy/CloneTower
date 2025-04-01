@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://bskf7chn632a8"]
+
+[ext_resource type="Texture2D" uid="uid://8i0xtivyxxrw" path="res://assets/slime_ball_blue.png" id="1_vpr6v"]
+[ext_resource type="Script" path="res://scripts/slime_ball_blue.gd" id="2_8k4m2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 8.0
+
+[node name="SlimeBallBlue" type="Node2D"]
+script = ExtResource("2_8k4m2")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_vpr6v")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_1")
