@@ -28,6 +28,8 @@ var is_dragging := false
 var drag_offset: Vector2
 var original_position: Vector2
 var bounce_tween: Tween
+var last_target_pos: Vector2
+var last_target_time: float
 
 signal tower_selected(tower: DefenseTower)
 
@@ -82,17 +84,32 @@ func _on_shoot_timer_timeout() -> void:
 func find_nearest_enemy() -> Node2D:
 	var nearest_distance = stats.attack_range
 	var nearest_enemy = null
+	var best_prediction_score := INF
 
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var distance = global_position.distance_to(enemy.global_position)
 		if distance < nearest_distance:
-			nearest_distance = distance
-			nearest_enemy = enemy
+			# Calculate how good this target would be based on their position and movement
+			var prediction_score = _calculate_prediction_score(enemy)
+			if prediction_score < best_prediction_score:
+				best_prediction_score = prediction_score
+				nearest_enemy = enemy
+				nearest_distance = distance
 
 	return nearest_enemy
 
+func _calculate_prediction_score(enemy: Node2D) -> float:
+	# Lower score is better
+	var distance = global_position.distance_to(enemy.global_position)
+
+	# Prefer enemies that are further along in their path (more x progress)
+	var progress_weight = 1.0 - (enemy.position.x / get_viewport_rect().size.x)
+
+	# Combine factors - distance is primary, progress is secondary
+	return distance * 0.8 + progress_weight * 0.2
+
 func shoot_at(target: Node2D) -> void:
-	if not projectile_scene:
+	if not projectile_scene or not target:
 		return
 
 	var projectile = projectile_scene.instantiate()
@@ -103,7 +120,36 @@ func shoot_at(target: Node2D) -> void:
 
 	var spawn_offset = Vector2(0, -sprite_2d.texture.get_height() * sprite_2d.scale.y / 2)
 	projectile.global_position = global_position + spawn_offset
-	projectile.rotation = (target.global_position - global_position).normalized().angle()
+
+	# Calculate target velocity
+	var target_velocity := Vector2.ZERO
+	var current_time := Time.get_ticks_msec() / 1000.0
+
+	if target.has_method("get_velocity"):
+		target_velocity = target.get_velocity()
+	else:
+		# Estimate velocity if the target doesn't provide it
+		if last_target_time > 0:
+			var dt = current_time - last_target_time
+			if dt > 0:
+				target_velocity = (target.global_position - last_target_pos) / dt
+
+	# Store current position and time for next velocity calculation
+	last_target_pos = target.global_position
+	last_target_time = current_time
+
+	# Calculate intercept point
+	var direction_to_target = (target.global_position - projectile.global_position).normalized()
+	var distance_to_target = projectile.global_position.distance_to(target.global_position)
+	var projectile_speed = projectile.speed
+	var time_to_target = distance_to_target / projectile_speed
+
+	# Predict where the target will be
+	var predicted_pos = target.global_position + target_velocity * time_to_target
+
+	# Calculate final aim direction
+	var aim_direction = (predicted_pos - projectile.global_position).normalized()
+	projectile.rotation = aim_direction.angle()
 
 # Drag and drop methods
 func start_drag() -> void:

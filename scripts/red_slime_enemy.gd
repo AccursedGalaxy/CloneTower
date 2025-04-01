@@ -13,6 +13,7 @@ const HIT_FLASH_COLOR := Color(1, 0.5, 0.5)
 # Enemy properties
 var stats: EnemyStats
 var current_health: float
+var _velocity := Vector2.ZERO
 
 signal enemy_died
 
@@ -23,6 +24,7 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
+	_velocity = Vector2(stats.speed, 0)
 	position.x += stats.speed * delta
 
 	if position.x > get_viewport_rect().size.x + DESPAWN_OFFSET:
@@ -52,3 +54,6 @@ func _show_damage_feedback() -> void:
 
 func get_reward() -> int:
 	return stats.reward
+
+func get_velocity() -> Vector2:
+	return _velocity
