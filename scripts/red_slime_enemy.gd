@@ -5,6 +5,8 @@ extends Node2D
 @export var max_health: float = 30.0  # Maximum health of the enemy
 var current_health: float
 
+signal enemy_died
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	# Start at the left side of the screen, just outside view
@@ -36,4 +38,5 @@ func take_damage(amount: float) -> void:
 
 	# Check if dead
 	if current_health <= 0:
+		enemy_died.emit()
 		queue_free()

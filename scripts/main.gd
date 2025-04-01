@@ -8,19 +8,41 @@ const MAX_SPAWN_ATTEMPTS := 10  # Maximum number of attempts to find a valid spa
 const MAX_TOWERS := 5  # Maximum number of towers allowed
 const RESPAWN_DELAY := 2.0  # Seconds to wait before respawning when below max
 const MIN_TOWER_DISTANCE := 100.0  # Minimum distance between towers
+const MAX_HEALTH := 10  # Maximum player health
+const SCORE_PER_KILL := 100  # Points awarded for killing an enemy
 
 @onready var tower_spawn_timer: Timer = $TowerSpawnTimer
 @onready var enemy_spawn_timer: Timer = $EnemySpawnTimer
 var current_tower_count := 0
+var score := 0
+var current_health := MAX_HEALTH
+
+@onready var end: Area2D = $GameGrid/End
+@onready var score_count_label: Label = $UI/UIControl/MarginContainer/GridContainer/ScoreCountLabel
+@onready var health_label: Label = $UI/UIControl/MarginContainer/GridContainer/ScoreCountLabel2
+
+func update_score() -> void:
+	score += SCORE_PER_KILL
+	score_count_label.text = "%d" % score
+
+func update_health() -> void:
+	health_label.text = "Health: %d" % current_health
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	print("[Main] Scene initialized")
 	print("[Main] Viewport size: ", get_viewport_rect().size)
-	# Start spawning towers when the scene loads
-	tower_spawn_timer.start(4)
-	enemy_spawn_timer.start(2)  # Spawn enemy every 2 seconds
-	print("[Main] Tower spawn timer started with interval: 4 seconds")
+
+	# Start spawning towers and enemies
+	tower_spawn_timer.start()
+	enemy_spawn_timer.start()
+
+	print("[Main] Tower spawn timer started with interval: ", tower_spawn_timer.wait_time, " seconds")
+	print("[Main] Enemy spawn timer started with interval: ", enemy_spawn_timer.wait_time, " seconds")
+
+	# Initialize health and score display
+	update_health()
+	score_count_label.text = "0"  # Just display 0 without adding points
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta: float) -> void:
@@ -122,3 +144,48 @@ func _on_enemy_spawn_timer_timeout() -> void:
 func spawn_enemy() -> void:
 	var enemy = RED_SLIME.instantiate()
 	add_child(enemy)
+	# Connect to the enemy's death signal
+	enemy.enemy_died.connect(_on_enemy_died)
+
+func _on_enemy_died() -> void:
+	update_score()
+
+func game_over() -> void:
+	print("Game Over!")
+	# Stop spawning enemies and towers
+	enemy_spawn_timer.stop()
+	tower_spawn_timer.stop()
+
+	# Clean up all game objects
+	cleanup_game_objects()
+
+func cleanup_game_objects() -> void:
+	# Clean up all enemies
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		enemy.queue_free()
+
+	# Clean up all towers
+	var towers = get_tree().get_nodes_in_group("towers")
+	for tower in towers:
+		tower.queue_free()
+
+	# Clean up all projectiles (slime balls)
+	var projectiles = get_tree().get_nodes_in_group("projectiles")
+	for projectile in projectiles:
+		projectile.queue_free()
+
+func _on_end_area_entered(area: Area2D) -> void:
+	# Check if the area belongs to an enemy
+	if area.get_parent().is_in_group("enemies"):
+		# Decrease health
+		current_health -= 1
+		update_health()
+
+		# Remove the enemy
+		var enemy = area.get_parent()
+		enemy.queue_free()
+
+		# Check if game over
+		if current_health <= 0:
+			game_over()

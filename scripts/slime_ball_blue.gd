@@ -5,6 +5,9 @@ extends Node2D
 @onready var area_2d: Area2D = $Area2D
 
 func _ready() -> void:
+	# Add to projectiles group for cleanup
+	add_to_group("projectiles")
+
 	# Connect to area entered signal
 	area_2d.area_entered.connect(_on_area_entered)
 	# Set up a timer to delete the projectile if it goes off screen

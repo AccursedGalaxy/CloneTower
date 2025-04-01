@@ -77,17 +77,15 @@ tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAIAAAAAAAA
 tile_set = SubResource("TileSet_sugp2")
 
 [node name="End" type="Area2D" parent="GameGrid"]
-position = Vector2(-1, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameGrid/End"]
-position = Vector2(1127, 286)
+position = Vector2(1153, 289)
 shape = SubResource("RectangleShape2D_0wfyh")
 
 [node name="TowerSpawnTimer" type="Timer" parent="."]
 
 [node name="EnemySpawnTimer" type="Timer" parent="."]
-wait_time = 5.0
+wait_time = 3.0
 
-[connection signal="area_entered" from="GameGrid/End" to="." method="_on_end_area_entered"]
 [connection signal="timeout" from="TowerSpawnTimer" to="." method="_on_tower_spawn_timer_timeout"]
 [connection signal="timeout" from="EnemySpawnTimer" to="." method="_on_enemy_spawn_timer_timeout"]
